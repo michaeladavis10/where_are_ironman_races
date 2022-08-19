@@ -1,4 +1,5 @@
 # Used to add locations on Google Maps here: https://www.google.com/maps/d/u/0/edit?mid=1z3wWmoi6MFwQs9UReqbQUFVVyLWm3znH&usp=sharing
+# Also used on RaspPi Server here: https://datastudio.google.com/embed/reporting/85c10805-1156-49dc-bff6-105bb88e3154/page/2ub0C
 
 from selenium import webdriver
 import pandas as pd
@@ -187,4 +188,11 @@ wb = gc.open("Olympic")
 wks = wb.worksheet("title", "Sheet1")
 wks.clear()
 wks.set_dataframe(races_df[races_df["Race Type"] == "Olympic"], (1, 1))
+wks.adjust_column_width(1, len(races_df.columns))
+
+wb = gc.open("All_Ironman")
+wks = wb.worksheet("title", "Sheet1")
+wks.clear()
+races_df.loc[races_df["Race Type"] == "70.3", "Race Type"] = "Half"
+wks.set_dataframe(races_df, (1, 1))
 wks.adjust_column_width(1, len(races_df.columns))
