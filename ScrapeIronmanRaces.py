@@ -2,6 +2,9 @@
 # Also used on RaspPi Server here: https://datastudio.google.com/embed/reporting/85c10805-1156-49dc-bff6-105bb88e3154/page/2ub0C
 
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import pandas as pd
 import time
 import pygsheets
@@ -12,9 +15,14 @@ driver = webdriver.Firefox()
 
 driver.get(f"{url}")
 
-cookie_accep = '//*[@id="onetrust-accept-btn-handler"]'
+cookie_accept = '//*[@id="onetrust-accept-btn-handler"]'
 
-driver.find_element_by_xpath('//*[@id="onetrust-accept-btn-handler"]').click()
+wait = WebDriverWait(
+    driver,
+    timeout=10,
+    poll_frequency=1,
+)
+element = wait.until(EC.element_to_be_clickable((By.XPATH, cookie_accept))).click()
 
 races_df = pd.DataFrame()
 race_list = []
