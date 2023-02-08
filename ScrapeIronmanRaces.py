@@ -153,11 +153,10 @@ races_df = pd.DataFrame(race_list)
 races_df.to_excel("ironman_races.xlsx", index=False)
 
 # Write to G-Sheets
-gc = pygsheets.authorize(service_file="ironmanmaps-cce634a56b5e.json")
+gc = pygsheets.authorize(service_file="ironmanmap-0773e936d7d8.json")
 
-wb = gc.open("All_Ironman")
+wb = gc.open("IronmanRaces")
 wks = wb.worksheet("title", "Sheet1")
 wks.clear()
-races_df.loc[races_df["Race Type"] == "70.3", "Race Type"] = "Half"
 wks.set_dataframe(races_df, (1, 1))
 wks.adjust_column_width(1, len(races_df.columns))
