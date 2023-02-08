@@ -5,18 +5,19 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, WebDriverException
+
 import pandas as pd
 import time
 import pygsheets
 
+# Open page
 url = "https://www.ironman.com/races"
-
 driver = webdriver.Firefox()
-
 driver.get(f"{url}")
 
+# Accept Cookies
 cookie_accept = '//*[@id="onetrust-accept-btn-handler"]'
-
 wait = WebDriverWait(
     driver,
     timeout=10,
@@ -24,138 +25,117 @@ wait = WebDriverWait(
 )
 element = wait.until(EC.element_to_be_clickable((By.XPATH, cookie_accept))).click()
 
-races_df = pd.DataFrame()
+# Scrape pages
 race_list = []
 
-for page in range(14):
-    for race in range(1, 16):
-        try:
+while True:
 
-            race_dict = {}
+    # Get info from page
+    time.sleep(0.5)
+    race_cards = driver.find_elements_by_class_name("race-card")
 
-            # Safety
-            for variable in [
-                "race_name",
-                "race_type",
-                "race_location",
-                "race_link",
-                "race_swim",
-                "race_bike",
-                "race_run",
-                "race_air_temp",
-                "race_water_temp",
-                "race_airport",
-                "race_image",
-                "race_month",
-                "race_day",
-                "race_year",
-                "race_date",
-            ]:
-                try:
-                    del variable
-                except:
-                    pass
+    for race_card in race_cards:
 
-            race_name = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[1]/div[1]/h3"
-            ).text
-            if "70.3" in race_name:
-                race_type = "70.3"
-            elif "5150" in race_name:
-                race_type = "Olympic"
-            else:
-                race_type = "Full"
+        # Dates
+        race_month = race_card.find_element_by_class_name("race-month").text
+        race_day = race_card.find_element_by_class_name("race-day").text
+        race_year = race_card.find_element_by_class_name("race-year").text
 
-            race_dict["Race Name"] = race_name
-            race_dict["Race Type"] = race_type
+        # Race Info
+        race_name = (
+            race_card.find_element_by_class_name("details-left")
+            .find_element_by_tag_name("h3")
+            .text
+        )
+        race_location = race_card.find_element_by_class_name("race-location").text
+        race_link = race_card.find_element_by_tag_name("a").get_attribute("href")
+        race_image = race_card.find_element_by_tag_name("img").get_attribute("src")
 
-            race_month = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[1]/div[1]/p[1]"
-            ).text
-            race_day = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[1]/div[1]/p[2]"
-            ).text
-            race_year = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[1]/div[1]/p[3]"
-            ).text
+        # Course Info
+        race_swim = (
+            race_card.find_element_by_class_name("swim-type")
+            .find_element_by_tag_name("b")
+            .text
+        )
+        race_bike = (
+            race_card.find_element_by_class_name("bike-type")
+            .find_element_by_tag_name("b")
+            .text
+        )
+        race_run = (
+            race_card.find_element_by_class_name("run-type")
+            .find_element_by_tag_name("b")
+            .text
+        )
+        race_air_temp = int(
+            race_card.find_element_by_class_name("airTemp")
+            .find_element_by_tag_name("b")
+            .text.split("\xb0")[0]
+        )
+        race_water_temp = int(
+            race_card.find_element_by_class_name("waterTemp")
+            .find_element_by_tag_name("b")
+            .text.split("\xb0")[0]
+        )
+        race_airport = (
+            race_card.find_element_by_class_name("airport")
+            .find_element_by_tag_name("b")
+            .text
+        )
 
-            if race_month == "June":
-                race_month = "Jun"
-            elif race_month == "July":
-                race_month = "Jul"
-            elif race_month == "Sept":
-                race_month = "Sep"
-            elif race_month == "March":
-                race_month = "Mar"
-            elif race_month == "April":
-                race_month = "Apr"
-            elif race_month == "TBD":
-                race_month = "Dec"
-                race_day = "31"
+        # Cleaning up
+        ## Race type
+        if "70.3" in race_name:
+            race_type = "70.3"
+        elif "5150" in race_name:
+            race_type = "Olympic"
+        else:
+            race_type = "Full"
 
-            if race_year == "TBD":
-                continue
-            elif race_year == "":
-                continue
-            elif race_year == None:
-                continue
-            elif race_day == "TBD":
-                race_day = "01"
-
-            race_date = pd.to_datetime(
-                race_year + race_month + race_day, format=("%Y%b%d")
-            )
-            race_dict["Race Date"] = race_date
-
-            race_location = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[1]/div[1]/p[3]"
-            ).text
-            race_dict["Location"] = race_location
-
-            race_swim = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[2]/div[1]/p/b"
-            ).text
-            race_dict["Swim Type"] = race_swim
-            race_bike = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[2]/div[2]/p/b"
-            ).text
-            race_dict["Bike Type"] = race_bike
-            race_run = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[2]/div[3]/p/b"
-            ).text
-            race_dict["Run Type"] = race_run
-            race_air_temp = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[2]/div[4]/p/b"
-            ).text
-            race_dict["Air Temp"] = race_air_temp
-            race_water_temp = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[2]/div[5]/p/b"
-            ).text
-            race_dict["Water Temp"] = race_water_temp
-            race_airport = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[2]/div[6]/p/b"
-            ).text
-            race_dict["Airport"] = race_airport
-
-            race_link = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[2]/div[1]/div[2]/a"
-            ).get_attribute("href")
-            race_dict["URL"] = race_link
-
-            race_image = driver.find_element_by_xpath(
-                f"/html/body/div[6]/div/div[2]/div[2]/div[2]/div/div/div/div[1]/div[{race}]/div[1]/img"
-            ).get_attribute("src")
-            race_dict["Race Image"] = race_image
-
-            race_list.append(race_dict)
-
-        except Exception as e:
-            print(race_name)
-            print(race_year)
-            print(race_month)
-            print(race_day)
-            print(e)
+        ## Dates
+        ### Month
+        if race_month == "June":
+            race_month = "Jun"
+        elif race_month == "July":
+            race_month = "Jul"
+        elif race_month == "Sept":
+            race_month = "Sep"
+        elif race_month == "March":
+            race_month = "Mar"
+        elif race_month == "April":
+            race_month = "Apr"
+        elif race_month == "TBD":
+            race_month = "Dec"
+            race_day = "31"
+        ### Year/day
+        if race_year == "TBD":
             continue
+        elif race_year == "":
+            continue
+        elif race_year == None:
+            continue
+        elif race_day == "TBD":
+            race_day = "01"
+        ### Make a complete year
+        race_date = pd.to_datetime(race_year + race_month + race_day, format=("%Y%b%d"))
+
+        # Don't mess with names (spaces) due to existing formats
+        race_dict = dict()
+        race_dict["Race Name"] = race_name
+        race_dict["Race Type"] = race_type
+        race_dict["Race Date"] = race_date
+        race_dict["Location"] = race_location
+        race_dict["Swim Type"] = race_swim
+        race_dict["Bike Type"] = race_bike
+        race_dict["Run Type"] = race_run
+        race_dict["Air Temp"] = race_air_temp
+        race_dict["Water Temp"] = race_water_temp
+        race_dict["Airport"] = race_airport
+        race_dict["URL"] = race_link
+        race_dict["Race Image"] = race_image
+
+        print(race_name)
+        race_list.append(race_dict)
 
     try:
         next_page_button = driver.find_element_by_css_selector("button.nextPageButton")
@@ -163,40 +143,17 @@ for page in range(14):
         time.sleep(0.25)
         next_page_button.click()
 
-    except Exception as e:
-        print(e)
-        pass
+    except (TimeoutException, WebDriverException) as e:
+        print("Last page reached")
+        driver.quit()
+        break
 
-    time.sleep(0.5)
-
-
-driver.quit()
 
 races_df = pd.DataFrame(race_list)
-races_df
-
 races_df.to_excel("ironman_races.xlsx", index=False)
 
 # Write to G-Sheets
 gc = pygsheets.authorize(service_file="ironmanmaps-cce634a56b5e.json")
-
-wb = gc.open("140.6")
-wks = wb.worksheet("title", "Sheet1")
-wks.clear()
-wks.set_dataframe(races_df[races_df["Race Type"] == "Full"], (1, 1))
-wks.adjust_column_width(1, len(races_df.columns))
-
-wb = gc.open("70.3")
-wks = wb.worksheet("title", "Sheet1")
-wks.clear()
-wks.set_dataframe(races_df[races_df["Race Type"] == "70.3"], (1, 1))
-wks.adjust_column_width(1, len(races_df.columns))
-
-wb = gc.open("Olympic")
-wks = wb.worksheet("title", "Sheet1")
-wks.clear()
-wks.set_dataframe(races_df[races_df["Race Type"] == "Olympic"], (1, 1))
-wks.adjust_column_width(1, len(races_df.columns))
 
 wb = gc.open("All_Ironman")
 wks = wb.worksheet("title", "Sheet1")
