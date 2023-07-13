@@ -29,13 +29,11 @@ element = wait.until(EC.element_to_be_clickable((By.XPATH, cookie_accept))).clic
 race_list = []
 
 while True:
-
     # Get info from page
     time.sleep(0.5)
     race_cards = driver.find_elements_by_class_name("race-card")
 
     for race_card in race_cards:
-
         # Dates
         race_month = race_card.find_element_by_class_name("race-month").text
         race_day = race_card.find_element_by_class_name("race-day").text
@@ -67,12 +65,12 @@ while True:
             .find_element_by_tag_name("b")
             .text
         )
-        race_air_temp = int(
+        race_air_temp = (
             race_card.find_element_by_class_name("airTemp")
             .find_element_by_tag_name("b")
             .text.split("\xb0")[0]
         )
-        race_water_temp = int(
+        race_water_temp = (
             race_card.find_element_by_class_name("waterTemp")
             .find_element_by_tag_name("b")
             .text.split("\xb0")[0]
@@ -118,6 +116,16 @@ while True:
             race_day = "01"
         ### Make a complete year
         race_date = pd.to_datetime(race_year + race_month + race_day, format=("%Y%b%d"))
+
+        # Bug fix
+        if race_air_temp == "TBD":
+            race_air_temp = int(60)
+        else:
+            race_air_temp = int(race_air_temp)
+        if race_water_temp == "TBD":
+            race_water_temp = int(60)
+        else:
+            race_water_temp = int(race_water_temp)
 
         # Don't mess with names (spaces) due to existing formats
         race_dict = dict()
